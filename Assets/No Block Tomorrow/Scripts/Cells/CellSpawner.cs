@@ -9,23 +9,21 @@ namespace No_Block_Tomorrow.Scripts.Cells
 		public const  float       BaseYPos = 0.5f;
 		public static CellSpawner Instance;
 
-		[SerializeField] private GameObject prefab;
-
-		public int columns = 9;
-		public int rows    = 21;
-
-		[SerializeField] private Sprite[] types;
-
+		[SerializeField] private GameObject  prefab;
+		[SerializeField] private Sprite[]    types;
 		[SerializeField] private AudioClip   blockBrake;
 		[SerializeField] private AudioSource audio;
+		[SerializeField] private GameObject  gameOverObj;
 
 		[HideInInspector] public int combo;
+		public                   int columns = 9;
+		public                   int rows    = 21;
 
-		private int _fallingCells;
-
+		private int  _fallingCells;
 		private bool _isWaiting;
 
 		public Cell[,] Cells;
+
 
 		public int FallingCells {
 			get => _fallingCells;
@@ -82,6 +80,7 @@ namespace No_Block_Tomorrow.Scripts.Cells
 			_isWaiting = false;
 		}
 
+
 		private void CheckForCombo()
 		{
 			audio.pitch = 1;
@@ -93,6 +92,72 @@ namespace No_Block_Tomorrow.Scripts.Cells
 			//if (combo == 0) 
 			Input.EnableInput = true;
 			combo             = 0;
+
+			bool Combo(int x, int y)
+			{
+				if (GetCell(x, y) is null) return false;
+
+				int type = GetCell(x, y).type;
+
+				int typeInXCount = 1;
+				var cellsX       = new List<Cell>(0);
+				for (int localX = x + 1; localX < columns; localX++) {
+					Cell target = GetCell(localX, y);
+					if (!ValidateX(target)) break;
+					typeInXCount++;
+					cellsX.Add(target);
+				}
+
+				for (int localX = x - 1; localX >= 0; localX--) {
+					Cell target = GetCell(localX, y);
+					if (!ValidateX(target)) break;
+					typeInXCount++;
+					cellsX.Add(target);
+				}
+
+				int typeInYCount = 1;
+				var cellsY       = new List<Cell>(0);
+				for (int localY = y + 1; localY < columns; localY++) {
+					Cell target = GetCell(x, localY);
+					if (!ValidateY(target)) break;
+					typeInYCount++;
+					cellsY.Add(target);
+				}
+
+				for (int localY = y - 1; localY >= 0; localY--) {
+					Cell target = GetCell(x, localY);
+					if (!ValidateY(target)) break;
+					typeInYCount++;
+					cellsY.Add(target);
+				}
+
+				if (typeInXCount > 2) {
+					foreach (Cell cell in cellsX) {
+						cell.destroyedX = true;
+						cell.Kill(.2f * combo + .1f * Mathf.Abs(cell.x - x));
+					}
+
+					PointSystem.Points += typeInXCount * (20 + typeInXCount * 10) + combo * 15;
+					combo++;
+				}
+
+				if (typeInYCount > 2) {
+					foreach (Cell cell in cellsY) {
+						cell.destroyedY = true;
+						cell.Kill(.2f * combo + .1f * Mathf.Abs(cell.y - y));
+					}
+
+					PointSystem.Points += typeInYCount * (20 + typeInYCount * 10) + combo * 15;
+					combo++;
+				}
+
+				if (typeInXCount < 3 && typeInYCount < 3) return false;
+				GetCell(x, y).Kill(.2f * combo);
+				return true;
+
+				bool ValidateX(Cell target) => target is { } && target.type == type && !target.destroyedX;
+				bool ValidateY(Cell target) => target is { } && target.type == type && !target.destroyedY;
+			}
 		}
 
 		public void GiveUp()
@@ -102,10 +167,18 @@ namespace No_Block_Tomorrow.Scripts.Cells
 			for (int y = rows - 1; y >= 0; y--)
 			for (int x = 0; x < columns; x++) {
 				Cell c = Cells[x, y];
-				if (c is { }) {
-					c.Kill(++count * .1f);
-					PointSystem.Points += 10;
-				}
+				if (c is null) continue;
+				c.Kill(++count * .1f);
+				PointSystem.Points += 10;
+			}
+
+			StartCoroutine(EndGameDelay(++count * .1f));
+
+			IEnumerator EndGameDelay(float delay)
+			{
+				yield return new WaitForSeconds(delay);
+				Input.EnableInput = true;
+				gameOverObj.SetActive(true);
 			}
 		}
 
@@ -135,80 +208,12 @@ namespace No_Block_Tomorrow.Scripts.Cells
 
 		public Cell GetCell(int x, int y)
 		{
-			if (y >= 0 && y < rows && x >= 0 && x < columns) {
-				Cell c                          = null;
-				while (c is null && y < rows) c = Cells[x, y++];
+			if (y < 0 || y >= rows || x < 0 || x >= columns) return null;
+			Cell c                          = null;
+			while (c is null && y < rows) c = Cells[x, y++];
 
-				return c;
-			}
+			return c;
 
-			return null;
-		}
-
-		public bool Combo(int x, int y)
-		{
-			if (GetCell(x, y) is null) return false;
-
-			int type = GetCell(x, y).type;
-
-			int typeInXCount = 1;
-			var cellsX       = new List<Cell>(0);
-			for (int localX = x + 1; localX < columns; localX++) {
-				Cell target = GetCell(localX, y);
-				if (!ValidateX(target)) break;
-				typeInXCount++;
-				cellsX.Add(target);
-			}
-
-			for (int localX = x - 1; localX >= 0; localX--) {
-				Cell target = GetCell(localX, y);
-				if (!ValidateX(target)) break;
-				typeInXCount++;
-				cellsX.Add(target);
-			}
-
-			int typeInYCount = 1;
-			var cellsY       = new List<Cell>(0);
-			for (int localY = y + 1; localY < columns; localY++) {
-				Cell target = GetCell(x, localY);
-				if (!ValidateY(target)) break;
-				typeInYCount++;
-				cellsY.Add(target);
-			}
-
-			for (int localY = y - 1; localY >= 0; localY--) {
-				Cell target = GetCell(x, localY);
-				if (!ValidateY(target)) break;
-				typeInYCount++;
-				cellsY.Add(target);
-			}
-
-			if (typeInXCount > 2) {
-				foreach (Cell cell in cellsX) {
-					cell.destroyedX = true;
-					cell.Kill(.2f * combo + .1f * Mathf.Abs(cell.x - x));
-				}
-
-				PointSystem.Points += typeInXCount * (20 + typeInXCount * 10) + combo * 15;
-				combo++;
-			}
-
-			if (typeInYCount > 2) {
-				foreach (Cell cell in cellsY) {
-					cell.destroyedY = true;
-					cell.Kill(.2f * combo + .1f * Mathf.Abs(cell.y - y));
-				}
-
-				PointSystem.Points += typeInYCount * (20 + typeInYCount * 10) + combo * 15;
-				combo++;
-			}
-
-			if (typeInXCount < 3 && typeInYCount < 3) return false;
-			GetCell(x, y).Kill(.2f * combo);
-			return true;
-
-			bool ValidateX(Cell target) => target is { } && target.type == type && !target.destroyedX;
-			bool ValidateY(Cell target) => target is { } && target.type == type && !target.destroyedY;
 		}
 
 
@@ -216,12 +221,12 @@ namespace No_Block_Tomorrow.Scripts.Cells
 		{
 			if (cell is { })
 				StartCoroutine(GravityEnumerator(delay, cell));
-		}
 
-		private IEnumerator GravityEnumerator(float delay, Cell cell)
-		{
-			yield return new WaitForSeconds(delay);
-			Gravity(cell);
+			IEnumerator GravityEnumerator(float delay, Cell cell)
+			{
+				yield return new WaitForSeconds(delay);
+				Gravity(cell);
+			}
 		}
 	}
 }

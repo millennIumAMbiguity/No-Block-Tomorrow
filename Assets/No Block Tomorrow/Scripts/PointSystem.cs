@@ -7,7 +7,7 @@ namespace No_Block_Tomorrow.Scripts
 	{
 		public static PointSystem Instance;
 
-		private static int desplayValue;
+		private static int _desplayValue;
 
 		public TMP_Text text;
 
@@ -17,15 +17,15 @@ namespace No_Block_Tomorrow.Scripts
 		{
 			Instance     = this;
 			Points       = 0;
-			desplayValue = 0;
+			_desplayValue = 0;
 		}
 
 		private void FixedUpdate()
 		{
-			int oldV = desplayValue;
-			desplayValue = (int) (Mathf.Lerp(desplayValue + 0.5f, Points, Time.fixedUnscaledDeltaTime) + .5f);
-			if (oldV != desplayValue)
-				text.text = desplayValue.ToString();
+			int oldV = _desplayValue;
+			_desplayValue = (int) (Mathf.Lerp(_desplayValue + 0.5f, Points, Time.fixedUnscaledDeltaTime) + .5f);
+			if (oldV != _desplayValue)
+				text.text = _desplayValue.ToString();
 		}
 	}
 }
