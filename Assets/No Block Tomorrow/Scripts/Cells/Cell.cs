@@ -33,18 +33,14 @@ namespace No_Block_Tomorrow.Scripts.Cells
 			_trans.localPosition = newPos;
 		}
 
-		private void OnEnable()
-		{
-			CellSpawner.Instance.FallingCells++;
-			Input.EnableInput = false;
-		}
+		private void OnEnable() => CellManager.Instance.FallingCells++;
 
-		private void OnDisable() => CellSpawner.Instance.FallingCells--;
+		private void OnDisable() => CellManager.Instance.FallingCells--;
 
 		public void Jump()
 		{
 			if (destroyed) return;
-			_targetPos           = new Vector3(x - CellSpawner.Instance.columns / 2f, y + CellSpawner.BaseYPos);
+			_targetPos           = new Vector3(x - CellManager.Instance.columns / 2f, y + CellManager.BaseYPos);
 			_trans.localPosition = new Vector3(_targetPos.x, _trans.localPosition.y);
 			if (enabled) return;
 			_velocity = 0;
@@ -52,14 +48,15 @@ namespace No_Block_Tomorrow.Scripts.Cells
 		}
 
 
-		private void Kill(bool isMouse = false)
+		private void Kill(bool isMouse = false, float gravityDelay = .2f)
 		{
-			CellSpawner.Instance.PlayBlockBrakeAudio();
+			CellManager.Instance.PlayBlockBrakeAudio();
 			destroyed                        = true;
-			CellSpawner.Instance.Cells[x, y] = null;
-			if (y + 1 < CellSpawner.Instance.rows)
-				CellSpawner.Instance.Gravity(
-					isMouse ? 0 : 1f, CellSpawner.Instance.GetCell(x, y + 1));
+			CellManager.Instance.Cells[x, y] = null;
+			if (y + 1 < CellManager.Instance.rows) { }
+
+			CellManager.Instance.Gravity(
+				isMouse ? 0 : gravityDelay, CellManager.Instance.GetCell(x, y + 1));
 			Vector3 newPos = _trans.localPosition;
 			//trans.localPosition = new Vector3(newPos.x, newPos.y, 1);
 			Destroy(gameObject, 1);
@@ -71,12 +68,25 @@ namespace No_Block_Tomorrow.Scripts.Cells
 			if (destroyed) return;
 			destroyed = true;
 			StartCoroutine(KillDelay(delay, isMouse));
+
+			IEnumerator KillDelay(float delay, bool isMouse = false)
+			{
+				yield return new WaitForSeconds(delay);
+				Kill(isMouse);
+			}
 		}
 
-		private IEnumerator KillDelay(float delay, bool isMouse = false)
+		public void Kill(float delay, float gravityDelay)
 		{
-			yield return new WaitForSeconds(delay);
-			Kill(isMouse);
+			if (destroyed) return;
+			destroyed = true;
+			StartCoroutine(KillDelay(delay, gravityDelay));
+
+			IEnumerator KillDelay(float delay, float gravityDelay)
+			{
+				yield return new WaitForSeconds(delay);
+				Kill(false, gravityDelay);
+			}
 		}
 	}
 }

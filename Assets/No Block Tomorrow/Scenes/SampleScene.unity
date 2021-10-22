@@ -2051,7 +2051,7 @@ MonoBehaviour:
   - {fileID: 21300000, guid: 4a5def208473d66459728e4d7cc62345, type: 3}
   blockBrake: {fileID: 8300000, guid: e13a559e976a3a643842153af658877e, type: 3}
   audio: {fileID: 1882561502}
-  gameOverObj: {fileID: 0}
+  gameOverObj: {fileID: 34575472}
   combo: 0
   columns: 9
   rows: 21

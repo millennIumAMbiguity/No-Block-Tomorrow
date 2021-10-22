@@ -4,10 +4,10 @@ using UnityEngine;
 
 namespace No_Block_Tomorrow.Scripts.Cells
 {
-	public class CellSpawner : MonoBehaviour
+	public class CellManager : MonoBehaviour
 	{
 		public const  float       BaseYPos = 0.5f;
-		public static CellSpawner Instance;
+		public static CellManager Instance;
 
 		[SerializeField] private GameObject  prefab;
 		[SerializeField] private Sprite[]    types;
@@ -83,16 +83,30 @@ namespace No_Block_Tomorrow.Scripts.Cells
 
 		private void CheckForCombo()
 		{
+			var cellsToKill    = new List<Cell>();
+			var cellsKillDelay = new List<float>();
+
 			audio.pitch = 1;
+			combo       = 0;
 
 			for (int y = rows - 1; y >= 0; y--)
 			for (int x = 0; x < columns; x++)
 				Combo(x, y);
 
-			//if (combo == 0) 
-			Input.EnableInput = true;
-			combo             = 0;
+			for (int i = 0; i < cellsToKill.Count; i++)
+				cellsToKill[i].Kill(cellsKillDelay[i], combo * .2f + .2f);
 
+			if (combo == 0)
+				Input.EnableInput = true;
+			else StartCoroutine(WaitAndLookForGravity(combo * .2f + .3f));
+
+			IEnumerator WaitAndLookForGravity(float delay)
+			{
+				yield return new WaitForSeconds(delay);
+				if (!_isWaiting && FallingCells == 0) 
+					Input.EnableInput = true;
+			}
+			
 			bool Combo(int x, int y)
 			{
 				if (GetCell(x, y) is null) return false;
@@ -132,27 +146,33 @@ namespace No_Block_Tomorrow.Scripts.Cells
 				}
 
 				if (typeInXCount > 2) {
+					cellsToKill.AddRange(cellsX);
 					foreach (Cell cell in cellsX) {
 						cell.destroyedX = true;
-						cell.Kill(.2f * combo + .1f * Mathf.Abs(cell.x - x));
+						cellsKillDelay.Add(.2f * combo + .1f * Mathf.Abs(cell.x - x));
+						//cell.Kill(.2f * combo + .1f * Mathf.Abs(cell.x - x));
 					}
 
-					PointSystem.Points += typeInXCount * (20 + typeInXCount * 10) + combo * 15;
+					PointSystem.GiveComboScore(typeInXCount, combo);
 					combo++;
 				}
 
 				if (typeInYCount > 2) {
+					cellsToKill.AddRange(cellsY);
 					foreach (Cell cell in cellsY) {
 						cell.destroyedY = true;
-						cell.Kill(.2f * combo + .1f * Mathf.Abs(cell.y - y));
+						cellsKillDelay.Add(.2f * combo + .1f * Mathf.Abs(cell.y - y));
+						//cell.Kill(.2f * combo + .1f * Mathf.Abs(cell.y - y));
 					}
 
-					PointSystem.Points += typeInYCount * (20 + typeInYCount * 10) + combo * 15;
+					PointSystem.GiveComboScore(typeInYCount, combo);
 					combo++;
 				}
 
 				if (typeInXCount < 3 && typeInYCount < 3) return false;
-				GetCell(x, y).Kill(.2f * combo);
+				cellsToKill.Add(GetCell(x, y));
+				cellsKillDelay.Add(.2f * (combo - 1));
+				//GetCell(x, y).Kill(.2f * (combo - 1));
 				return true;
 
 				bool ValidateX(Cell target) => target is { } && target.type == type && !target.destroyedX;
@@ -182,9 +202,17 @@ namespace No_Block_Tomorrow.Scripts.Cells
 			}
 		}
 
-		public void Gravity(Cell cell)
+		public Cell GetCell(int x, int y)
 		{
-			if (cell is null || cell.y < 1) return;
+			if (y < 0 || y >= rows || x < 0 || x >= columns) return null;
+			Cell c                          = null;
+			while (c is null && y < rows) c = Cells[x, y++];
+
+			return c;
+		}
+
+		private void GravityFast(Cell cell)
+		{
 			Gravity(.2f, GetCell(cell.x, cell.y + 1));
 			if (cell.destroyed) {
 				Cells[cell.x, cell.y] = null;
@@ -205,27 +233,22 @@ namespace No_Block_Tomorrow.Scripts.Cells
 			cell.y                = localY;
 			cell.Jump();
 		}
-
-		public Cell GetCell(int x, int y)
+		private void Gravity(Cell cell)
 		{
-			if (y < 0 || y >= rows || x < 0 || x >= columns) return null;
-			Cell c                          = null;
-			while (c is null && y < rows) c = Cells[x, y++];
-
-			return c;
-
+			if (cell is null || cell.y < 1) return;
+			GravityFast(cell);
 		}
-
-
+		
 		public void Gravity(float delay, Cell cell)
 		{
-			if (cell is { })
-				StartCoroutine(GravityEnumerator(delay, cell));
+			if (cell is null || cell.y < 1) return;
+			if (Input.EnableInput && (!cell.destroyed || GetCell(cell.x, cell.y + 1) is { })) Input.EnableInput = false;
+			StartCoroutine(GravityEnumerator(delay, cell));
 
-			IEnumerator GravityEnumerator(float delay, Cell cell)
+			IEnumerator GravityEnumerator(float delayInSeconds, Cell targetCell)
 			{
-				yield return new WaitForSeconds(delay);
-				Gravity(cell);
+				yield return new WaitForSeconds(delayInSeconds);
+				GravityFast(targetCell);
 			}
 		}
 	}
