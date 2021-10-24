@@ -1,6 +1,7 @@
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.Serialization;
 
 namespace No_Block_Tomorrow.Scripts.Cells
 {
@@ -12,7 +13,7 @@ namespace No_Block_Tomorrow.Scripts.Cells
 		[SerializeField] private GameObject  prefab;
 		[SerializeField] private Sprite[]    types;
 		[SerializeField] private AudioClip   blockBrake;
-		[SerializeField] private AudioSource audio;
+		[SerializeField] private AudioSource audioSource;
 		[SerializeField] private GameObject  gameOverObj;
 
 		[HideInInspector] public int combo;
@@ -62,8 +63,8 @@ namespace No_Block_Tomorrow.Scripts.Cells
 
 		public void PlayBlockBrakeAudio()
 		{
-			audio.pitch += .025f;
-			audio.PlayOneShot(blockBrake);
+			audioSource.pitch += .025f;
+			audioSource.PlayOneShot(blockBrake);
 		}
 
 		private IEnumerator WaitForIdle()
@@ -86,8 +87,8 @@ namespace No_Block_Tomorrow.Scripts.Cells
 			var cellsToKill    = new List<Cell>();
 			var cellsKillDelay = new List<float>();
 
-			audio.pitch = 1;
-			combo       = 0;
+			audioSource.pitch = 1;
+			combo             = 0;
 
 			for (int y = rows - 1; y >= 0; y--)
 			for (int x = 0; x < columns; x++)
@@ -103,10 +104,10 @@ namespace No_Block_Tomorrow.Scripts.Cells
 			IEnumerator WaitAndLookForGravity(float delay)
 			{
 				yield return new WaitForSeconds(delay);
-				if (!_isWaiting && FallingCells == 0) 
+				if (!_isWaiting && FallingCells == 0)
 					Input.EnableInput = true;
 			}
-			
+
 			bool Combo(int x, int y)
 			{
 				if (GetCell(x, y) is null) return false;
@@ -182,7 +183,7 @@ namespace No_Block_Tomorrow.Scripts.Cells
 
 		public void GiveUp()
 		{
-			audio.pitch = 1;
+			audioSource.pitch = 1;
 			int count = 0;
 			for (int y = rows - 1; y >= 0; y--)
 			for (int x = 0; x < columns; x++) {
@@ -233,12 +234,13 @@ namespace No_Block_Tomorrow.Scripts.Cells
 			cell.y                = localY;
 			cell.Jump();
 		}
+
 		private void Gravity(Cell cell)
 		{
 			if (cell is null || cell.y < 1) return;
 			GravityFast(cell);
 		}
-		
+
 		public void Gravity(float delay, Cell cell)
 		{
 			if (cell is null || cell.y < 1) return;
